@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Health Prediction AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --card: #111827;
+      --border: #1f2d45;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background-image: radial-gradient(ellipse at 20% 20%, rgba(0,212,255,0.05) 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 60%);
+    }
+    header { text-align: center; padding: 3rem 1rem 2rem; border-bottom: 1px solid var(--border); }
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
+    header p { color: var(--muted); margin-top: 0.5rem; font-size: 1.1rem; }
+    .tabs { display: flex; justify-content: center; gap: 1rem; padding: 2rem 1rem 0; flex-wrap: wrap; }
+    .tab {
+      padding: 0.75rem 1.75rem; border-radius: 50px; border: 1px solid var(--border);
+      background: var(--card); color: var(--muted); cursor: pointer;
+      font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease;
+    }
+    .tab:hover { border-color: var(--accent); color: var(--accent); }
+    .tab.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; border-color: transparent; }
+    .container { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+    .form-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 2.5rem; display: none; animation: fadeIn 0.4s ease;
+    }
+    .form-card.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .form-card h2 { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .form-card > p { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; }
+    .field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input, .field select {
+      width: 100%; padding: 0.75rem 1rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 0.95rem; font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s; outline: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field select option { background: var(--card); }
+    .btn {
+      margin-top: 2rem; width: 100%; padding: 1rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; border: none; border-radius: 12px;
+      font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s, transform 0.2s; letter-spacing: 0.05em;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .result { margin-top: 2rem; padding: 1.5rem; border-radius: 14px; display: none; animation: fadeIn 0.4s ease; }
+    .result.show { display: block; }
+    .result.positive { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
+    .result.negative { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); }
+    .result-title { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .result.positive .result-title { color: var(--red); }
+    .result.negative .result-title { color: var(--green); }
+    .confidence-bar { margin-top: 1rem; background: var(--border); border-radius: 50px; height: 8px; overflow: hidden; }
+    .confidence-fill { height: 100%; border-radius: 50px; transition: width 1s ease; }
+    .result.positive .confidence-fill { background: var(--red); }
+    .result.negative .confidence-fill { background: var(--green); }
+    .confidence-label { display: flex; justify-content: space-between; margin-top: 0.4rem; font-size: 0.8rem; color: var(--muted); }
+    .disclaimer { margin-top: 1rem; font-size: 0.8rem; color: var(--muted); font-style: italic; }
+    .pdf-btn {
+      margin-top: 1rem; padding: 0.6rem 1.5rem; background: transparent;
+      border: 1px solid var(--accent); color: var(--accent); border-radius: 50px;
+      cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;
+    }
+    .pdf-btn:hover { background: var(--accent); color: var(--bg); }
+    .chart-section {
+      margin-top: 2rem; padding: 1.5rem; background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border); border-radius: 14px; display: none; animation: fadeIn 0.4s ease;
+    }
+    .chart-section.show { display: block; }
+    .chart-section h3 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 1rem; color: var(--accent); }
+    .chart-wrapper { position: relative; height: 250px; }
+    .history-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .history-table th { text-align: left; padding: 0.75rem 1rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .history-table td { padding: 0.85rem 1rem; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    .history-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge { padding: 0.3rem 0.8rem; border-radius: 50px; font-size: 0.78rem; font-weight: 600; font-family: 'Syne', sans-serif; }
+    .badge.positive { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge.negative { background: rgba(16,185,129,0.15); color: var(--green); }
+    .clear-btn {
+      margin-top: 1.5rem; padding: 0.6rem 1.5rem; background: transparent;
+      border: 1px solid var(--border); color: var(--muted); border-radius: 50px;
+      cursor: pointer; font-family: 'Syne', sans-serif; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .clear-btn:hover { border-color: var(--red); color: var(--red); }
+    footer { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+    .loading { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏥 Health Prediction AI</h1>
+  <p>ML-powered predictions for Diabetes, Heart Disease & Parkinson's</p>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('diabetes', this)">🩸 Diabetes</button>
+  <button class="tab" onclick="switchTab('heart', this)">❤️ Heart Disease</button>
+  <button class="tab" onclick="switchTab('parkinsons', this)">🧠 Parkinson's</button>
+</div>
+
+<div class="container">
+  <!-- DIABETES -->
+  <div class="form-card active" id="diabetes">
+    <h2>🩸 Diabetes Prediction</h2>
+    <p>Enter patient medical details to predict diabetes risk</p>
+    <div class="grid">
+      <div class="field"><label>Pregnancies</label><input type="number" id="d_preg" value="1" min="0"/></div>
+      <div class="field"><label>Glucose (mg/dL)</label><input type="number" id="d_glucose" value="120" min="0"/></div>
+      <div class="field"><label>Blood Pressure</label><input type="number" id="d_bp" value="70" min="0"/></div>
+      <div class="field"><label>Skin Thickness</label><input type="number" id="d_skin" value="20" min="0"/></div>
+      <div class="field"><label>Insulin (μU/mL)</label><input type="number" id="d_insulin" value="80" min="0"/></div>
+      <div class="field"><label>BMI</label><input type="number" id="d_bmi" value="25.0" step="0.1"/></div>
+      <div class="field"><label>Diabetes Pedigree</label><input type="number" id="d_dpf" value="0.5" step="0.001"/></div>
+      <div class="field"><label>Age</label><input type="number" id="d_age" value="30" min="0"/></div>
+    </div>
+    <button class="btn" onclick="predict('diabetes')">🔍 Predict Diabetes Risk</button>
+    <div class="result" id="diabetes_result">
+      <div class="result-title" id="diabetes_result_title"></div>
+      <div class="confidence-bar"><div class="confidence-fill" id="diabetes_bar" style="width:0%"></div></div>
+      <div class="confidence-label"><span>Confidence</span><span id="diabetes_conf"></span></div>
+      <button class="pdf-btn" onclick="downloadPDF('diabetes')">🖨️ Download Result as PDF</button>
+      <p class="disclaimer">⚠️ For educational purposes only. Consult a doctor for medical advice.</p>
+    </div>
+    <div class="chart-section" id="diabetes_chart">
+      <h3>📈 Your Values vs Normal Range</h3>
+      <div class="chart-wrapper"><canvas id="diabetes_canvas"></canvas></div>
+    </div>
+  </div>
+
+  <!-- HEART -->
+  <div class="form-card" id="heart">
+    <h2>❤️ Heart Disease Prediction</h2>
+    <p>Enter cardiovascular health details to assess heart disease risk</p>
+    <div class="grid">
+      <div class="field"><label>Age</label><input type="number" id="h_age" value="50"/></div>
+      <div class="field"><label>Sex</label><select id="h_sex"><option value="1">Male</option><option value="0">Female</option></select></div>
+      <div class="field"><label>Chest Pain (0-3)</label><input type="number" id="h_cp" value="1" min="0" max="3"/></div>
+      <div class="field"><label>Resting BP</label><input type="number" id="h_bp" value="120"/></div>
+      <div class="field"><label>Cholesterol</label><input type="number" id="h_chol" value="200"/></div>
+      <div class="field"><label>Fasting Blood Sugar</label><select id="h_fbs"><option value="0">≤120 mg/dL</option><option value="1">>120 mg/dL</option></select></div>
+      <div class="field"><label>Rest ECG (0-2)</label><input type="number" id="h_ecg" value="0" min="0" max="2"/></div>
+      <div class="field"><label>Max Heart Rate</label><input type="number" id="h_thalach" value="150"/></div>
+      <div class="field"><label>Exercise Angina</label><select id="h_exang"><option value="0">No</option><option value="1">Yes</option></select></div>
+      <div class="field"><label>ST Depression</label><input type="number" id="h_oldpeak" value="1.0" step="0.1"/></div>
+      <div class="field"><label>Slope (0-2)</label><input type="number" id="h_slope" value="1" min="0" max="2"/></div>
+      <div class="field"><label>Major Vessels (0-3)</label><input type="number" id="h_ca" value="0" min="0" max="3"/></div>
+      <div class="field"><label>Thal (0-3)</label><input type="number" id="h_thal" value="2" min="0" max="3"/></div>
+    </div>
+    <button class="btn" onclick="predict('heart')">🔍 Predict Heart Disease Risk</button>
+    <div class="result" id="heart_result">
+      <div class="result-title" id="heart_result_title"></div>
+      <div class="confidence-bar"><div class="confidence-fill" id="heart_bar" style="width:0%"></div></div>
+      <div class="confidence-label"><span>Confidence</span><span id="heart_conf"></span></div>
+      <button class="pdf-btn" onclick="downloadPDF('heart')">🖨️ Download Result as PDF</button>
+      <p class="disclaimer">⚠️ For educational purposes only. Consult a doctor for medical advice.</p>
+    </div>
+    <div class="chart-section" id="heart_chart">
+      <h3>📈 Your Values vs Normal Range</h3>
+      <div class="chart-wrapper"><canvas id="heart_canvas"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PARKINSONS -->
+  <div class="form-card" id="parkinsons">
+    <h2>🧠 Parkinson's Prediction</h2>
+    <p>Enter voice measurement details to assess Parkinson's risk</p>
+    <div class="grid">
+      <div class="field"><label>Fo Hz</label><input type="number" id="p_fo" value="150.0" step="0.1"/></div>
+      <div class="field"><label>Fhi Hz</label><input type="number" id="p_fhi" value="200.0" step="0.1"/></div>
+      <div class="field"><label>Flo Hz</label><input type="number" id="p_flo" value="100.0" step="0.1"/></div>
+      <div class="field"><label>Jitter %</label><input type="number" id="p_jitter" value="0.005" step="0.001"/></div>
+      <div class="field"><label>Shimmer</label><input type="number" id="p_shimmer" value="0.03" step="0.001"/></div>
+      <div class="field"><label>NHR</label><input type="number" id="p_nhr" value="0.02" step="0.001"/></div>
+      <div class="field"><label>HNR</label><input type="number" id="p_hnr" value="20.0" step="0.1"/></div>
+      <div class="field"><label>RPDE</label><input type="number" id="p_rpde" value="0.45" step="0.001"/></div>
+      <div class="field"><label>DFA</label><input type="number" id="p_dfa" value="0.7" step="0.001"/></div>
+      <div class="field"><label>Spread1</label><input type="number" id="p_spread1" value="-5.0" step="0.01"/></div>
+      <div class="field"><label>Spread2</label><input type="number" id="p_spread2" value="0.2" step="0.01"/></div>
+      <div class="field"><label>D2</label><input type="number" id="p_d2" value="2.5" step="0.01"/></div>
+      <div class="field"><label>PPE</label><input type="number" id="p_ppe" value="0.2" step="0.01"/></div>
+    </div>
+    <button class="btn" onclick="predict('parkinsons')">🔍 Predict Parkinson's Risk</button>
+    <div class="result" id="parkinsons_result">
+      <div class="result-title" id="parkinsons_result_title"></div>
+      <div class="confidence-bar"><div class="confidence-fill" id="parkinsons_bar" style="width:0%"></div></div>
+      <div class="confidence-label"><span>Confidence</span><span id="parkinsons_conf"></span></div>
+      <button class="pdf-btn" onclick="downloadPDF('parkinsons')">🖨️ Download Result as PDF</button>
+      <p class="disclaimer">⚠️ For educational purposes only. Consult a doctor for medical advice.</p>
+    </div>
+    <div class="chart-section" id="parkinsons_chart">
+      <h3>📈 Your Values vs Normal Range</h3>
+      <div class="chart-wrapper"><canvas id="parkinsons_canvas"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="container" id="history-section" style="display:none">
+  <div class="form-card active">
+    <h2>📊 Prediction History</h2>
+    <p>Your last 5 predictions this session</p>
+    <table class="history-table">
+      <thead><tr><th>Disease</th><th>Result</th><th>Confidence</th><th>Time</th></tr></thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <button class="clear-btn" onclick="clearHistory()">🗑️ Clear History</button>
+  </div>
+</div>
+
+<footer>
+  Built with Python, Flask, Scikit-learn & HTML/CSS/JS &nbsp;|&nbsp; Health Prediction AI &copy; 2026
+</footer>
+
+<script>
+  const API = "http://localhost:5000";
+  let predictionHistory = [];
+  let chartInstances = {};
+  let lastResults = {};
+
+  const normalRanges = {
+    diabetes: { labels: ["Glucose","Blood Pressure","BMI","Age","Insulin"], normal: [90,80,22,35,85], colors: ["#00d4ff","#7c3aed","#10b981","#f59e0b","#ef4444"] },
+    heart:    { labels: ["Age","BP","Cholesterol","Max HR","ST Dep"], normal: [50,120,200,150,1.0], colors: ["#00d4ff","#7c3aed","#10b981","#f59e0b","#ef4444"] },
+    parkinsons:{ labels: ["Fo Hz","Fhi Hz","Flo Hz","HNR","DFA"], normal: [150,200,100,20,0.7], colors: ["#00d4ff","#7c3aed","#10b981","#f59e0b","#ef4444"] }
+  };
+
+  function switchTab(name, el) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".form-card").forEach(f => f.classList.remove("active"));
+    el.classList.add("active");
+    document.getElementById(name).classList.add("active");
+  }
+
+  function addToHistory(disease, result, confidence, isPositive) {
+    const time = new Date().toLocaleTimeString();
+    predictionHistory.unshift({ disease, result, confidence, isPositive, time });
+    if (predictionHistory.length > 5) predictionHistory.pop();
+    document.getElementById("history-section").style.display = "block";
+    document.getElementById("history-body").innerHTML = predictionHistory.map(p => `
+      <tr>
+        <td>${p.disease}</td>
+        <td><span class="badge ${p.isPositive ? 'positive' : 'negative'}">${p.result}</span></td>
+        <td>${p.confidence}%</td>
+        <td>${p.time}</td>
+      </tr>`).join("");
+  }
+
+  function clearHistory() {
+    predictionHistory = [];
+    document.getElementById("history-section").style.display = "none";
+    document.getElementById("history-body").innerHTML = "";
+  }
+
+  function showChart(disease, userValues) {
+    const section = document.getElementById(`${disease}_chart`);
+    section.classList.add("show");
+    const ranges = normalRanges[disease];
+    const ctx = document.getElementById(`${disease}_canvas`).getContext("2d");
+    if (chartInstances[disease]) chartInstances[disease].destroy();
+    chartInstances[disease] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ranges.labels,
+        datasets: [
+          { label: "Your Values", data: userValues, backgroundColor: ranges.colors.map(c => c + "99"), borderColor: ranges.colors, borderWidth: 2, borderRadius: 6 },
+          { label: "Normal Range", data: ranges.normal, backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.3)", borderWidth: 2, borderRadius: 6 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: "#e2e8f0", font: { family: "DM Sans" } } } },
+        scales: {
+          x: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#64748b" }, grid: { color: "rgba(255,255,255,0.05)" } }
+        }
+      }
+    });
+  }
+
+  function downloadPDF(disease) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const result = lastResults[disease];
+    if (!result) return;
+
+    doc.setFillColor(10, 15, 30);
+    doc.rect(0, 0, 210, 297, "F");
+
+    doc.setTextColor(0, 212, 255);
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text("Health Prediction AI", 105, 25, { align: "center" });
+
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("ML-Powered Disease Prediction Report", 105, 35, { align: "center" });
+
+    doc.setDrawColor(31, 45, 69);
+    doc.line(20, 42, 190, 42);
+
+    const names = { diabetes: "Diabetes", heart: "Heart Disease", parkinsons: "Parkinson's" };
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${names[disease]} Prediction Report`, 20, 58);
+
+    const isPositive = result.prediction === 1;
+    const r = isPositive ? 239 : 16, g = isPositive ? 68 : 185, b = isPositive ? 68 : 129;
+    doc.setDrawColor(r, g, b);
+    doc.setFillColor(r, g, b, 0.1);
+    doc.roundedRect(20, 65, 170, 30, 5, 5, "FD");
+    doc.setTextColor(r, g, b);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${isPositive ? "WARNING: " : "CLEAR: "}${result.result}`, 105, 83, { align: "center" });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Confidence Score: ${result.confidence}%`, 20, 110);
+    doc.setFillColor(31, 45, 69);
+    doc.roundedRect(20, 115, 170, 8, 3, 3, "F");
+    doc.setFillColor(r, g, b);
+    doc.roundedRect(20, 115, 170 * result.confidence / 100, 8, 3, 3, "F");
+
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(10);
+    doc.text(`Date: ${new Date().toLocaleDateString()}   Time: ${new Date().toLocaleTimeString()}`, 20, 140);
+
+    doc.setDrawColor(31, 45, 69);
+    doc.line(20, 150, 190, 150);
+    doc.setFontSize(9);
+    doc.text("DISCLAIMER: This report is for educational purposes only.", 20, 162);
+    doc.text("Please consult a qualified medical professional for proper diagnosis.", 20, 170);
+    doc.setFontSize(8);
+    doc.text("Health Prediction AI © 2026 | Built with Python, Flask & Scikit-learn", 105, 285, { align: "center" });
+
+    doc.save(`${disease}_prediction_report.pdf`);
+  }
+
+  async function predict(disease) {
+    const btn = document.querySelector(`#${disease} .btn`);
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading">⟳</span> Predicting...';
+
+    let body = {}, chartValues = [];
+
+    if (disease === "diabetes") {
+      const glucose = +document.getElementById("d_glucose").value;
+      const bp = +document.getElementById("d_bp").value;
+      const bmi = +document.getElementById("d_bmi").value;
+      const age = +document.getElementById("d_age").value;
+      const insulin = +document.getElementById("d_insulin").value;
+      body = { Pregnancies: +document.getElementById("d_preg").value, Glucose: glucose, BloodPressure: bp, SkinThickness: +document.getElementById("d_skin").value, Insulin: insulin, BMI: bmi, DiabetesPedigreeFunction: +document.getElementById("d_dpf").value, Age: age };
+      chartValues = [glucose, bp, bmi, age, insulin];
+    } else if (disease === "heart") {
+      const age = +document.getElementById("h_age").value;
+      const bp = +document.getElementById("h_bp").value;
+      const chol = +document.getElementById("h_chol").value;
+      const thalach = +document.getElementById("h_thalach").value;
+      const oldpeak = +document.getElementById("h_oldpeak").value;
+      body = { age, sex: +document.getElementById("h_sex").value, cp: +document.getElementById("h_cp").value, trestbps: bp, chol, fbs: +document.getElementById("h_fbs").value, restecg: +document.getElementById("h_ecg").value, thalach, exang: +document.getElementById("h_exang").value, oldpeak, slope: +document.getElementById("h_slope").value, ca: +document.getElementById("h_ca").value, thal: +document.getElementById("h_thal").value };
+      chartValues = [age, bp, chol, thalach, oldpeak];
+    } else {
+      const fo = +document.getElementById("p_fo").value;
+      const fhi = +document.getElementById("p_fhi").value;
+      const flo = +document.getElementById("p_flo").value;
+      const hnr = +document.getElementById("p_hnr").value;
+      const dfa = +document.getElementById("p_dfa").value;
+      body = { fo, fhi, flo, jitter: +document.getElementById("p_jitter").value, shimmer: +document.getElementById("p_shimmer").value, nhr: +document.getElementById("p_nhr").value, hnr, rpde: +document.getElementById("p_rpde").value, dfa, spread1: +document.getElementById("p_spread1").value, spread2: +document.getElementById("p_spread2").value, d2: +document.getElementById("p_d2").value, ppe: +document.getElementById("p_ppe").value };
+      chartValues = [fo, fhi, flo, hnr, dfa];
+    }
+
+    try {
+      const res = await fetch(`${API}/predict/${disease}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+      lastResults[disease] = data;
+
+      const resultDiv = document.getElementById(`${disease}_result`);
+      const titleDiv  = document.getElementById(`${disease}_result_title`);
+      const bar       = document.getElementById(`${disease}_bar`);
+      const conf      = document.getElementById(`${disease}_conf`);
+
+      resultDiv.className = "result show " + (data.prediction === 1 ? "positive" : "negative");
+      titleDiv.textContent = data.prediction === 1 ? "⚠️ " + data.result : "✅ " + data.result;
+      conf.textContent = data.confidence + "%";
+      setTimeout(() => { bar.style.width = data.confidence + "%"; }, 100);
+
+      showChart(disease, chartValues);
+      const name = disease.charAt(0).toUpperCase() + disease.slice(1);
+      addToHistory(name, data.result, data.confidence, data.prediction === 1);
+
+    } catch (err) {
+      alert("⚠️ Could not connect to backend. Make sure Flask server is running on port 5000!");
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = "🔍 Predict " + disease.charAt(0).toUpperCase() + disease.slice(1) + " Risk";
+  }
+</script>
+</body>
+</html>
